@@ -1,0 +1,178 @@
+{
+  "took": 12,
+  "timed_out": false,
+  "_shards": { "total": 1, "successful": 1, "skipped": 0, "failed": 0 },
+  "hits": {
+    "total": { "value": 1, "relation": "eq" },
+    "max_score": 10.081756,
+    "hits": [
+      {
+        "_index": "parking",
+        "_id": "1207681",
+        "_score": 10.081756,
+        "_source": {
+          "region": {
+            "isLineEnabled": false,
+            "isImportantForMarketing": true,
+            "id": 131200992,
+            "nameFurigana": "みなみおおいずみ",
+            "name": "南大泉"
+          },
+          "addressView": "",
+          "payment": {
+            "keyMoney": 0,
+            "feeClass": -1,
+            "securityDepositClass": -1,
+            "fee": 0,
+            "keyMoneyClass": -1,
+            "securityDeposit": 0
+          },
+          "customerRestriction": null,
+          "isSublease": false,
+          "namePrefix": "",
+          "comment": {
+            "authorId": null,
+            "authorImage": null,
+            "summary": null,
+            "content": null
+          },
+          "type": 1,
+          "feature": "",
+          "updatedAt": "2023-12-06T09:13:23.000Z",
+          "createdAt": "2023-12-06T09:13:23.000Z",
+          "privateMemo": { "sublease": null, "content": null },
+          "status": 0,
+          "isVisible": true,
+          "createdFrom": 0,
+          "availableTimeRange": {
+            "closeAt": "",
+            "openAtSaturday": "",
+            "closeAtSaturday": "",
+            "closeAtSunday": "",
+            "openAtSunday": "",
+            "availableTimeLimit": 1,
+            "openAt": ""
+          },
+          "latestUpdatedAt": 1701854069,
+          "address": "東京都練馬区南大泉４丁目",
+          "storageDocument": { "isIssuingAvailable": null, "issuingFee": 0 },
+          "canSearchByAddress": false,
+          "isSubleaseAvailable": null,
+          "id": 1207681,
+          "tags": ["_jdbcstreamingdefaultsused"],
+          "spaces": [
+            {
+              "availableCarSize": {
+                "highRoof": true,
+                "large": true,
+                "middle": true,
+                "middleRoof": true,
+                "small": true
+              },
+              "spaceType": 1,
+              "isVisible": true,
+              "rentMin": null,
+              "totalVacancies": 0,
+              "availableForElectricCar": false,
+              "isRentAggregationAvailable": false,
+              "spaceId": 7335405,
+              "capacity": 0,
+              "facility": 2,
+              "name": "p",
+              "rent": 0,
+              "availableForTruck": false,
+              "isOutdoor": true,
+              "rentTaxClass": null,
+              "size": {
+                "tireWidth": 0,
+                "weight": 3000,
+                "remarks": "",
+                "width": 2100,
+                "height": 2300,
+                "length": 5000,
+                "groundHeight": 0
+              },
+              "settingType": 1
+            },
+            {
+              "availableCarSize": {
+                "highRoof": true,
+                "large": true,
+                "middle": true,
+                "middleRoof": true,
+                "small": true
+              },
+              "spaceType": 1,
+              "isVisible": false,
+              "rentMin": null,
+              "totalVacancies": 0,
+              "availableForElectricCar": false,
+              "isRentAggregationAvailable": false,
+              "spaceId": 7335406,
+              "capacity": 0,
+              "facility": 2,
+              "name": "p2",
+              "rent": 0,
+              "availableForTruck": false,
+              "isOutdoor": true,
+              "rentTaxClass": null,
+              "size": {
+                "tireWidth": 0,
+                "weight": 3000,
+                "remarks": "",
+                "width": 2100,
+                "height": 2300,
+                "length": 5000,
+                "groundHeight": 0
+              },
+              "settingType": 1
+            }
+          ],
+          "capacity": 0,
+          "prefecture": {
+            "id": 13,
+            "nameFurigana": "とうきょうと",
+            "name": "東京都"
+          },
+          "sourceType": 1,
+          "isUsedCarShare": null,
+          "city": {
+            "isLineEnabled": false,
+            "isImportantForMarketing": true,
+            "id": 13120,
+            "nameFurigana": "ねりまく",
+            "name": "練馬区"
+          },
+          "isManagedByAzoom": false,
+          "isRentPublished": false,
+          "inquiryTelephone": "0120-93-4476",
+          "referralFeeTotal": 0,
+          "isCampaignTarget": false,
+          "retentionCorp": 1,
+          "spaceUpdatedAt": null,
+          "sameParkingId": null,
+          "subleaseStatus": null,
+          "isShortTermRentAvailable": null,
+          "nearbyStations": [
+            {
+              "distance": 776,
+              "id": 2200112,
+              "lineName": "西武池袋線",
+              "name": "保谷",
+              "walkingTime": 10
+            }
+          ],
+          "name": "練馬区南大泉４丁目　月極駐車場",
+          "images": [],
+          "hasDivisionDrawing": false,
+          "isImportantForMarketing": false,
+          "location": { "lon": 139.573906, "lat": 35.743976 },
+          "isRentNegotiationAvailable": null,
+          "securityFacilities": [],
+          "isRequiredCancelNotice": false,
+          "isSubleaseNegotiationStarted": false
+        }
+      }
+    ]
+  }
+}
