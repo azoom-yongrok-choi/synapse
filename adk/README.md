@@ -26,7 +26,7 @@ pip install -r requirements.txt
 You must need to set environment variables file
 Plz ask to "Choi Yongrok" for sharing dashline
 
-_It must be located in `/multi_tool_agent`_
+_It must be located in `/back_office_agent`_
 
 ### Run code
 ```bash

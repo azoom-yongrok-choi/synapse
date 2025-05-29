@@ -1,6 +1,6 @@
-# multi_tool_agent/main_async.py
+# back_office_agent/main_async.py
 import asyncio
-from multi_tool_agent.agent import (
+from back_office_agent.agent import (
     create_agent,
     UserFriendlyToolError,
     safe_aclose_exit_stack,
