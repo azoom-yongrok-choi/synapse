@@ -1,11 +1,18 @@
-import os
-import asyncio
 import logging
-import traceback
+import os
+from enum import Enum
+from pydantic import PrivateAttr
+from .parking_agent import ParkingAgent
+from .common_agent import CommonAgent
+from .utils import (
+    get_default_parking_fields,
+    get_nested_fields,
+)
+from google.adk.agents.base_agent import BaseAgent
 from google.adk.agents.llm_agent import LlmAgent
-from google.adk.tools.mcp_tool.mcp_toolset import MCPToolset, StdioServerParameters
 from google.adk.models.lite_llm import LiteLlm
-from .utils import get_default_parking_fields, get_nested_fields
+from google.adk.tools.mcp_tool.mcp_toolset import MCPToolset, StdioServerParameters
+
 
 # Dynamically extract fields from data_type.json
 DEFAULT_PARKING_FIELDS = get_default_parking_fields()
@@ -23,181 +30,80 @@ class UserFriendlyToolError(Exception):
     pass
 
 
-async def get_param_error_message_ai(user_text, llm_agent, missing_params=None):
-    if missing_params:
-        param_str = ", ".join(missing_params)
-        prompt = (
-            f"The user tried to use a tool, but did not provide required information: {param_str}. "
-            "Please generate a short, friendly, and clear error message in the user's language, "
-            "explaining that the following information is missing: "
-            f"{param_str}. "
-            "Do NOT show any JSON, code example, or internal structure. "
-            "Just mention the missing item names in a simple, user-friendly way. "
-            "Do not mention internal parameter names or technical details. "
-            f"User's last message: {user_text}"
-        )
-    else:
-        prompt = (
-            "The user tried to use a tool, but did not provide all required information. "
-            "Please generate a short, friendly, and clear error message in the user's language, "
-            "explaining that some required information is missing for the request, but do NOT show any JSON or code example. "
-            "Do not mention internal parameter names. "
-            f"User's last message: {user_text}"
-        )
-    response = await llm_agent.generate(prompt)
-    return response.text if hasattr(response, "text") else str(response)
+class RequestType(Enum):
+    PARKING = "parking"
+    OTHER = "other"
 
 
-async def ensure_required_params_callback(tool, args, tool_context):
-    logging.info(
-        f"[TOOL GUARDRAIL] Called ensure_required_params_callback with tool={tool}, args={args}, tool_context={tool_context}"
-    )
-    try:
-        required_params = getattr(tool, "required", []) or []
-        missing_params = [
-            p for p in required_params if p not in args or args[p] in (None, "")
-        ]
-        if missing_params:
-            if "queryBody" in missing_params:
-                user_message_en = (
-                    "Your search is missing the required 'queryBody' parameter. "
-                    "Please provide more details about your search (e.g., location, price, facility, space, etc.) so I can help you better!"
-                )
-                user_text = getattr(tool_context, "user_input", None)
-                llm_agent = getattr(tool_context, "llm_agent", None)
-                if llm_agent and user_text:
-                    prompt = (
-                        f"{AGENT_PROMPT_COMMON_RULES}\n"
-                        f"Translate the following message into the user's language, matching the tone and style of the user's last message.\n"
-                        f"User's last message: {user_text}\n"
-                        f"Message: {user_message_en}"
-                    )
-                    try:
-                        response = await llm_agent.generate(prompt)
-                        user_message = (
-                            response.text
-                            if hasattr(response, "text")
-                            else str(response)
-                        )
-                    except Exception as e:
-                        logging.error(f"[TOOL GUARDRAIL] LLM translation failed: {e}")
-                        user_message = user_message_en
-                else:
-                    user_message = user_message_en
-                return {"status": "error", "error_message": user_message}
-            return {
-                "status": "error",
-                "error_message": f"Required information ({', '.join(missing_params)}) is missing. Please provide more details!",
-            }
-        logging.info(
-            "[TOOL GUARDRAIL] All required params present. Tool execution allowed."
-        )
-        return None
-    except Exception as e:
-        logging.error(
-            f"[TOOL GUARDRAIL] Exception in ensure_required_params_callback: {e}"
-        )
-        logging.error(traceback.format_exc())
-        return {
-            "status": "error",
-            "error_message": f"Exception occurred during parameter check: {e}",
-        }
+class MainAgent(BaseAgent):
+    _parking_agent: ParkingAgent = PrivateAttr()
+    _common_agent: CommonAgent = PrivateAttr()
+    _classifier_llm: LlmAgent = PrivateAttr()
 
-
-async def create_agent():
-    username = os.getenv("ES_USERNAME")
-    password = os.getenv("ES_PASSWORD")
-    es_url = os.getenv("ES_URL")
-    tools = []
-    exit_stack = None
-
-    # Logging configuration
-    logging.basicConfig(level=logging.INFO)
-
-    try:
-        tools, exit_stack = await asyncio.wait_for(
-            MCPToolset.from_server(
-                connection_params=StdioServerParameters(
-                    command="npx",
-                    args=[
-                        "-y",
-                        "@elastic/mcp-server-elasticsearch",
-                    ],
-                    env={
-                        "ES_URL": es_url,
-                        "ES_USERNAME": username,
-                        "ES_PASSWORD": password,
-                    },
-                )
+    def __init__(self, tools):
+        super().__init__(name="main_agent")
+        self._parking_agent = ParkingAgent(tools)
+        self._common_agent = CommonAgent()
+        self._classifier_llm = LlmAgent(
+            model=LiteLlm(model="openai/gpt-4o-mini"),
+            name="classifier_llm",
+            instruction=(
+                "You are a request classifier. "
+                "The user message to classify is stored in session state with key 'classifier_prompt'. "
+                f"If the user message is about finding a parking lot (such as asking for location, searching, or where to park), output exactly '{RequestType.PARKING.value}'. "
+                f"For all other cases, output exactly '{RequestType.OTHER.value}'. "
+                f"Do not explain. Output only one word: '{RequestType.PARKING.value}' or '{RequestType.OTHER.value}'."
             ),
-            timeout=100,
         )
-        logging.info(f"Received {len(tools)} tools from the MCP server.")
-    except asyncio.TimeoutError:
-        logging.error(
-            "[Warning] MCP server connection was not completed within 10 seconds. Creating the agent without MCP tools."
-        )
-        logging.error(f"[MCP Connection] ES_URL: {es_url}, ES_USERNAME: {username}")
-    except Exception as e:
-        logging.error(
-            "[Warning] Error occurred while connecting to the MCP server. Creating the agent without MCP tools."
-        )
-        logging.error(f"[MCP Connection] ES_URL: {es_url}, ES_USERNAME: {username}")
-        logging.error(f"[MCP Connection] Exception: {e}")
-        logging.error(traceback.format_exc())
 
-    fields_str = ", ".join(DEFAULT_PARKING_FIELDS)
-    nested_fields_str = ", ".join(NESTED_FIELDS)
-
-    agent = LlmAgent(
-        model=LiteLlm(model="openai/gpt-4o-mini"),
-        name="mcp_agent",
-        instruction=f"""
-You are an agent that uses the Elasticsearch MCP server's search tool.
-
-- Always respond in the user's language and use a friendly, emoji-rich tone.
-- All data queries must use only the \"parking\" index. Never use any other index.
-- Every MCP search tool call must include a valid 'queryBody' parameter.
-- When building 'queryBody':
-  - Use these fields by default unless the user specifies otherwise: {fields_str}
-  - For text fields, use match_phrase queries.
-  - For keyword fields, use term queries.
-  - For boolean fields, use term queries with true/false.
-  - For long/float fields, use range or term queries.
-  - For date fields, use range queries.
-  - For nested fields ({nested_fields_str}), always use the Elasticsearch nested query structure.
-
-Example nested query:
-{{
-  "queryBody": {{
-    "query": {{
-      "nested": {{
-        "path": "nearbyStations",
-        "query": {{
-          "match_phrase": {{ "nearbyStations.name": "保谷" }}
-        }}
-      }}
-    }}
-  }}
-}}
-""",
-        tools=tools,
-        before_tool_callback=ensure_required_params_callback,
-    )
-    return agent, exit_stack
-
-
-# Safe shutdown function
-async def safe_aclose_exit_stack(exit_stack):
-    if exit_stack is not None:
+    async def _run_async_impl(self, ctx):
+        user_input = ""
+        if hasattr(ctx, "session") and hasattr(ctx.session, "state"):
+            user_input = ctx.session.state.get("last_user_message", "")
+        ctx.session.state["classifier_prompt"] = user_input  # just the message
+        label = ""
+        async for event in self._classifier_llm.run_async(ctx):
+            # Try to extract text from event.content.parts[0].text
+            if hasattr(event, "content") and event.content:
+                parts = getattr(event.content, "parts", None)
+                if parts and len(parts) > 0 and hasattr(parts[0], "text"):
+                    label = parts[0].text.strip().lower()
+                elif hasattr(event.content, "text") and callable(event.content.text):
+                    label = event.content.text().strip().lower()
+                elif hasattr(event.content, "text"):
+                    label = event.content.text.strip().lower()
+                else:
+                    label = str(event.content).strip().lower()
+            else:
+                label = ""
+            break  # Only use the first event
+        logging.info(f"[Classifier] label: {label}")
         try:
-            await exit_stack.aclose()
-            logging.info("[Shutdown] exit_stack closed successfully.")
-        except Exception as e:
-            logging.error(f"[Shutdown] Error while closing exit_stack: {e}")
-            logging.error(traceback.format_exc())
-    else:
-        logging.info("[Shutdown] exit_stack is None, nothing to close.")
+            request_type = RequestType(label)
+        except ValueError:
+            request_type = RequestType.OTHER  # fallback for unexpected LLM output
+        logging.info(f"[Classifier] request_type: {request_type}")
+        if request_type == RequestType.PARKING:
+            logging.info("Routing to parking_agent")
+            async for event in self._parking_agent.run_async(ctx):
+                yield event
+        else:
+            logging.info("Routing to common_agent")
+            async for event in self._common_agent.run_async(ctx):
+                yield event
 
 
-root_agent = create_agent()
+# Create MCPToolset from environment variables
+mcp_toolset = MCPToolset(
+    connection_params=StdioServerParameters(
+        command="npx",
+        args=["-y", "@elastic/mcp-server-elasticsearch"],
+        env={
+            "ES_URL": os.getenv("ES_URL"),
+            "ES_USERNAME": os.getenv("ES_USERNAME"),
+            "ES_PASSWORD": os.getenv("ES_PASSWORD"),
+        },
+    )
+)
+
+root_agent = MainAgent([mcp_toolset])
