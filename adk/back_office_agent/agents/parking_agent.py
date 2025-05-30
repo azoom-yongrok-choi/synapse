@@ -3,7 +3,7 @@ from pydantic import PrivateAttr
 from google.adk.agents.base_agent import BaseAgent
 from google.adk.agents.llm_agent import LlmAgent
 from google.adk.models.lite_llm import LiteLlm
-from .utils import (
+from ..utils import (
     get_default_parking_fields,
     get_nested_fields,
     ensure_required_params_callback,
@@ -24,12 +24,9 @@ class ParkingAgent(BaseAgent):
             model=LiteLlm(model="openai/gpt-4o-mini"),
             name="parking_llm",
             instruction=f"""
-[AZOOM Official]
-
 You are a helpful AI agent specialized in parking lot search. For every user request, you MUST use the Elasticsearch MCP server's search tool to retrieve real data. 
 
 Guidelines:
-- For every response, always start with a title line: `[AZOOM Official]` (include this exactly, at the very top of your reply).
 - For any data query, NEVER answer from your own knowledge or imagination. ALWAYS call the MCP search tool and return only the tool's result to the user.
 - All data queries must use only the 'parking' index. Never use any other index.
 - Every MCP search tool call must include a valid 'queryBody' parameter.
