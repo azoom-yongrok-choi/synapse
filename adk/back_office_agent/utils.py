@@ -2,6 +2,16 @@ import json
 import os
 import logging
 import traceback
+from enum import Enum
+
+
+class RequestType(str, Enum):
+    PARKING = "parking"
+    OTHER = "other"
+
+
+CLASSIFIER_RESULT = "classifier_result"
+TO_TONE_POLISH = "to_tone_polish"
 
 
 # Recursively extract all field paths from data_type.json properties
