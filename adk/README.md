@@ -32,3 +32,8 @@ _It must be located in `/back_office_agent`_
 ```bash
 adk web
 ```
+
+### Run MCP server
+```bash
+./toolbox --tools-file "tools.yaml"
+```
