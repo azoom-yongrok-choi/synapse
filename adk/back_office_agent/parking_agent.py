@@ -54,24 +54,14 @@ Example nested query:
 """,
             output_key="response_text",
             tools=tools,
-            # before_tool_callback=ensure_required_params_callback,
-            # tool_call_mode="auto",  # Uncomment if your ADK/LiteLLM version supports this option
+            before_tool_callback=ensure_required_params_callback,
         )
 
     async def run_async(self, ctx):
-        # 1. 프롬프트/명령어 로그
-        logging.info("###### PARKING AGENT ######")
-        logging.info(f"[ParkingAgent] LLM instruction: {self.instruction}")
-        logging.info(f"[ParkingAgent] Tools: {self.tools}")
-
         async for event in super().run_async(ctx):
-            # 2. tool call 결과 로그
             if hasattr(event.actions, "tool_calls"):
                 logging.info(f"[ParkingAgent] Tool calls: {event.actions.tool_calls}")
-            # 3. state_delta(최종 응답) 로그
             logging.info(
                 f"[ParkingAgent] state_delta: {getattr(event.actions, 'state_delta', None)}"
             )
-            # 4. 전체 event 로그
-            logging.info(f"[ParkingAgent] Full event: {event}")
             yield event

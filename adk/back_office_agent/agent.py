@@ -24,7 +24,7 @@ class BackOfficeRootAgent(BaseAgent):
         username = os.getenv("ES_USERNAME")
         password = os.getenv("ES_PASSWORD")
         es_url = os.getenv("ES_URL")
-        # MCP tool 생성 (실제 MCP tool import 및 설정 필요)
+        # MCP tool import
         parking_tool = MCPToolset(
             connection_params=StdioServerParameters(
                 command="npx",
@@ -39,14 +39,13 @@ class BackOfficeRootAgent(BaseAgent):
                 },
                 timeout=60,
             )
-            # ... 필요한 설정 추가 ...
         )
 
         toolbox_url = os.environ.get("TOOLBOX_URL", "http://127.0.0.1:5000")
         toolbox = ToolboxSyncClient(toolbox_url)
         dummy_tools = toolbox.load_toolset("dummy-toolset")
 
-        # 각 서브에이전트 인스턴스화
+        # sub-agents
         self._classifier_agent = ClassifierAgent(ctx)
         self._parking_agent = ParkingAgent(ctx, tools=[parking_tool])
         self._common_agent = CommonAgent(ctx, tools=dummy_tools)
@@ -55,13 +54,13 @@ class BackOfficeRootAgent(BaseAgent):
     async def _run_async_impl(self, ctx):
         logging.info("[BackOfficeRootAgent] Start workflow")
 
-        # 1. ClassifierAgent 실행
+        # 1. ClassifierAgent
         async for event in self._classifier_agent.run_async(ctx):
             yield event
         classifier_result = ctx.session.state.get("classifier_result")
         logging.info(f"[BackOfficeRootAgent] Classifier result: {classifier_result}")
 
-        # 2. 분기
+        # 2. ParkingAgent or CommonAgent
         if classifier_result == RequestType.PARKING:
             async for event in self._parking_agent.run_async(ctx):
                 yield event
@@ -72,19 +71,17 @@ class BackOfficeRootAgent(BaseAgent):
             response_text = ctx.session.state.get("response_text")
         logging.info(f"[BackOfficeRootAgent] Response text: {response_text}")
 
-        # 3. TonePolishAgent 실행
+        # 3. TonePolishAgent
         ctx.session.state["to_polish"] = response_text
         async for event in self._tone_polish_agent.run_async(ctx):
             yield event
         polished_text = ctx.session.state.get("polished_text")
         logging.info(f"[BackOfficeRootAgent] Polished text: {polished_text}")
 
-        # 4. 최종 응답 저장
+        # 4. final response
         ctx.session.state["final_response"] = polished_text
 
         logging.info("[BackOfficeRootAgent] Workflow finished")
 
 
 root_agent = BackOfficeRootAgent(None)
-# def root_agent(ctx):
-#     return BackOfficeRootAgent(ctx)

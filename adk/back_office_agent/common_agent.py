@@ -31,22 +31,6 @@ Guidelines:
 
     async def run_async(self, ctx):
         async for event in super().run_async(ctx):
-            logging.info(f"[CommonAgent] Done: {event.actions}")
             logging.info(f"[CommonAgent] event(repr): {repr(event)}")
-            # 툴 호출 관련 정보 로그
-            logging.info(f"[CommonAgent] state_delta: {event.actions.state_delta}")
-            logging.info(
-                f"[CommonAgent] artifact_delta: {event.actions.artifact_delta}"
-            )
 
-            # 툴 호출 시도/결과 로그 (속성 존재 여부에 따라)
-            if hasattr(event.actions, "tool_calls"):
-                logging.info(f"[CommonAgent] tool_calls: {event.actions.tool_calls}")
-            if hasattr(event.actions, "tool_results"):
-                logging.info(
-                    f"[CommonAgent] tool_results: {event.actions.tool_results}"
-                )
-
-            # 전체 actions 객체도 출력
-            logging.info(f"[CommonAgent] actions(raw): {event.actions}")
             yield event
