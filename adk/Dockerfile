@@ -10,7 +10,6 @@ RUN apt-get update && \
 WORKDIR /app
 COPY . /app
 
-RUN pip install --upgrade pip
-RUN pip install -r requirements.txt
+RUN pip install --upgrade pip && pip install -r requirements.txt
 
-CMD ["python", "back_office_agent/main_async.py"] 
+CMD echo "For local testing, access at http://localhost:3000" && adk web

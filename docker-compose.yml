@@ -1,0 +1,18 @@
+version: '3.8'
+services:
+  adk:
+    build: ./adk
+    ports:
+      - "3000:80"
+    depends_on:
+      - mcp
+
+  mcp:
+    build: ./MCP
+    ports:
+      - "5001:5000"
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/your-gcp-key.json
+    volumes:
+      - ./MCP/your-gcp-key.json:/app/your-gcp-key.json
+      - ./MCP/tools.yaml:/app/tools.yaml
