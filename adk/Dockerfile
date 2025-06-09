@@ -10,6 +10,7 @@ RUN apt-get update && \
 WORKDIR /app
 COPY . /app
 
-RUN pip install --upgrade pip && pip install -r requirements.txt
+RUN pip install --upgrade pip 
+RUN pip install -r requirements.txt
 
-CMD echo "For local testing, access at http://localhost:3000" && adk web
+CMD ["adk", "web", "--port=8000", "--host=0.0.0.0"]
