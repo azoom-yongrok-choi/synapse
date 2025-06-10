@@ -2,13 +2,13 @@ import logging
 import os
 from toolbox_core import ToolboxSyncClient
 from google.adk.agents.base_agent import BaseAgent
-from back_office_agent.classifier_agent import ClassifierAgent
-from back_office_agent.parking_agent import ParkingAgent
-from back_office_agent.common_agent import CommonAgent
-from back_office_agent.tone_polish_agent import TonePolishAgent
-from back_office_agent.utils import RequestType
 from google.adk.tools.mcp_tool.mcp_toolset import MCPToolset, StdioServerParameters
 from pydantic import PrivateAttr
+from .classifier_agent import ClassifierAgent
+from .parking_agent import ParkingAgent
+from .common_agent import CommonAgent
+from .tone_polish_agent import TonePolishAgent
+from .utils import RequestType
 
 
 class BackOfficeRootAgent(BaseAgent):
@@ -37,11 +37,12 @@ class BackOfficeRootAgent(BaseAgent):
                     "ES_USERNAME": username,
                     "ES_PASSWORD": password,
                 },
-                timeout=60,
+                timeout=120,
             )
         )
 
         toolbox_url = os.environ.get("TOOLBOX_URL", "http://127.0.0.1:5000")
+        # toolbox_url = os.environ.get("TOOLBOX_URL", "http://mcp:5001")
         toolbox = ToolboxSyncClient(toolbox_url)
         dummy_tools = toolbox.load_toolset("dummy-toolset")
 
@@ -53,19 +54,27 @@ class BackOfficeRootAgent(BaseAgent):
 
     async def _run_async_impl(self, ctx):
         logging.info("[BackOfficeRootAgent] Start workflow")
+        logging.info(
+            f"STATE: api_auth_success={ctx.session.state.get('api_auth_success')}, auth_in_progress={ctx.session.state.get('auth_in_progress')}, classifier_result={ctx.session.state.get('classifier_result')}"
+        )
 
-        # 1. ClassifierAgent
+        # ClassifierAgent 실행
+        logging.info("[BackOfficeRootAgent] ClassifierAgent 실행")
         async for event in self._classifier_agent.run_async(ctx):
             yield event
         classifier_result = ctx.session.state.get("classifier_result")
         logging.info(f"[BackOfficeRootAgent] Classifier result: {classifier_result}")
 
-        # 2. ParkingAgent or CommonAgent
+        # 2. 분류 결과에 따라 분기
         if classifier_result == RequestType.PARKING:
+            logging.info("[BackOfficeRootAgent] classifier_result=parking")
             async for event in self._parking_agent.run_async(ctx):
                 yield event
             response_text = ctx.session.state.get("response_text")
         else:
+            logging.info(
+                f"[BackOfficeRootAgent] classifier_result={classifier_result} → CommonAgent 실행"
+            )
             async for event in self._common_agent.run_async(ctx):
                 yield event
             response_text = ctx.session.state.get("response_text")

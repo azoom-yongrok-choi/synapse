@@ -1,6 +1,6 @@
 from google.adk.agents.llm_agent import LlmAgent
 from google.adk.models.lite_llm import LiteLlm
-from back_office_agent.utils import RequestType
+from .utils import RequestType
 import logging
 
 
