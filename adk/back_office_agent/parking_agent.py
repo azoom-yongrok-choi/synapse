@@ -4,7 +4,7 @@ from google.adk.models.lite_llm import LiteLlm
 from .utils import (
     get_default_parking_fields,
     get_nested_fields,
-    ensure_required_params_callback,
+    # ensure_required_params_callback,
 )
 
 DEFAULT_PARKING_FIELDS = get_default_parking_fields()
@@ -54,7 +54,7 @@ Example nested query:
 """,
             output_key="response_text",
             tools=tools,
-            before_tool_callback=ensure_required_params_callback,
+            # before_tool_callback=ensure_required_params_callback,
         )
 
     async def run_async(self, ctx):

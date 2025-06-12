@@ -10,6 +10,7 @@ from .common_agent import CommonAgent
 from .tone_polish_agent import TonePolishAgent
 from .utils import RequestType
 from .auth_agent import AuthAgent
+from .custom_adk_patches import CustomMCPToolset
 
 
 class BackOfficeRootAgent(BaseAgent):
@@ -27,20 +28,20 @@ class BackOfficeRootAgent(BaseAgent):
         password = os.getenv("ES_PASSWORD")
         es_url = os.getenv("ES_URL")
         # MCP tool import
-        parking_tool = MCPToolset(
+        parking_tool = CustomMCPToolset(
             connection_params=StdioServerParameters(
                 command="npx",
                 args=[
                     "-y",
-                    "@elastic/mcp-server-elasticsearch",
+                    "@elastic/mcp-server-elasticsearch@0.1.1",
                 ],
                 env={
                     "ES_URL": es_url,
                     "ES_USERNAME": username,
                     "ES_PASSWORD": password,
                 },
-                timeout=120,
-                tool_filter=["search"],
+                # timeout=120, # It is not working 1.2.0
+                # tool_filter=["search"],
             ),
         )
 

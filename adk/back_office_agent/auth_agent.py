@@ -37,7 +37,13 @@ class AuthAgent(BaseAgent):
             logging.info("[AuthAgent] Authentication successful!")
             yield Event(
                 author=self.name,
-                content=Content(parts=[Part(text="Authentication successful.")]),
+                content=Content(
+                    parts=[
+                        Part(
+                            text="Authentication successful. Please re-enter your request you want."
+                        )
+                    ]
+                ),
                 actions=EventActions(
                     state_delta={"api_auth_success": True, "auth_in_progress": False}
                 ),
