@@ -1,8 +1,9 @@
 import logging
+import traceback
 import os
 from toolbox_core import ToolboxSyncClient
 from google.adk.agents.base_agent import BaseAgent
-from google.adk.tools.mcp_tool.mcp_toolset import MCPToolset, StdioServerParameters
+from google.adk.tools.mcp_tool.mcp_toolset import StdioServerParameters
 from pydantic import PrivateAttr
 from .classifier_agent import ClassifierAgent
 from .parking_agent import ParkingAgent
@@ -45,10 +46,19 @@ class BackOfficeRootAgent(BaseAgent):
             ),
         )
 
-        toolbox_url = os.environ.get("TOOLBOX_URL", "http://127.0.0.1:5000")
-        # toolbox_url = os.environ.get("TOOLBOX_URL", "http://mcp:5001")
-        toolbox = ToolboxSyncClient(toolbox_url)
-        dummy_tools = toolbox.load_toolset("dummy-toolset")
+        try:
+            toolbox_url = os.environ.get("TOOLBOX_URL", "http://127.0.0.1:5000")
+            toolbox = ToolboxSyncClient(toolbox_url)
+            logging.info(f"[BackOfficeRootAgent] Toolbox loaded from {toolbox_url}")
+            logging.info(
+                f"[BackOfficeRootAgent] TOOLBOX_URL: {os.environ.get('TOOLBOX_URL')}"
+            )
+            dummy_tools = toolbox.load_toolset("dummy-toolset")
+        except Exception as e:
+            logging.error(f"[BackOfficeRootAgent] Error loading toolbox: {str(e)}")
+            logging.error(f"[BackOfficeRootAgent] Traceback: {traceback.format_exc()}")
+            traceback.print_exc()
+            dummy_tools = []
 
         # sub-agents
         self._classifier_agent = ClassifierAgent(ctx)
