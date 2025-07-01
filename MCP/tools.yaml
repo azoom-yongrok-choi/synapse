@@ -2,7 +2,7 @@ sources:
   my-bigquery-source:
     kind: bigquery
     project: azoom-yongrok-choi
-    location: asia-northeast1
+    location: US
 tools:
   search-all-hotels-dummy:
     kind: bigquery-sql
@@ -27,8 +27,96 @@ tools:
         type: string
         description: The location of the hotel.
     statement: SELECT * FROM `dummy.hotels` WHERE LOWER(location) LIKE LOWER(CONCAT('%', @location, '%'));
+
+  search-30:
+    kind: bigquery-sql
+    source: my-bigquery-source
+    description: Search for all data in covid19_open_data.
+    statement: SELECT * FROM `covid_dummy.covid19_open_data` LIMIT 30;
+
+  search-trends-with-recovered-population:
+    kind: bigquery-sql
+    source: my-bigquery-source
+    description: Search for the top 5 localities with the highest average wheeze trends and the number of recovered population under 30.
+    statement: |
+      WITH search_trends AS (
+        SELECT
+          locality_name,
+          AVG(search_trends_wheeze) AS avg_wheeze_search_trend
+        FROM
+          `covid_dummy.covid19_open_data`
+        GROUP BY
+          locality_name
+      ),
+      recovered_population AS (
+        SELECT
+          locality_name,
+          SUM(new_recovered_age_0 + new_recovered_age_1 + new_recovered_age_2) AS recovered_under_30
+        FROM
+          `covid_dummy.covid19_open_data`
+        GROUP BY
+          locality_name
+      )
+      SELECT
+        s.locality_name,
+        s.avg_wheeze_search_trend,
+        r.recovered_under_30
+      FROM
+        search_trends s
+      JOIN
+        recovered_population r
+      ON
+        s.locality_name = r.locality_name
+      WHERE
+        s.avg_wheeze_search_trend > 0
+      ORDER BY
+        r.recovered_under_30 DESC;
+
+  search-vaccination-and-recovery-rate:
+    kind: bigquery-sql
+    source: my-bigquery-source
+    description: Search for the top 5 localities with the highest vaccination rate and recovery rate.
+    statement: |
+      SELECT
+        locality_name,
+        SUM(new_persons_fully_vaccinated_pfizer + new_persons_fully_vaccinated_moderna + new_persons_fully_vaccinated_janssen) AS total_fully_vaccinated,
+        SUM(new_recovered_male + new_recovered_female) AS total_new_recovered,
+        SUM(new_vaccine_doses_administered_pfizer + new_vaccine_doses_administered_moderna + new_vaccine_doses_administered_janssen) AS total_vaccine_doses_administered,
+        (SUM(new_persons_fully_vaccinated_pfizer + new_persons_fully_vaccinated_moderna + new_persons_fully_vaccinated_janssen) / SUM(new_vaccine_doses_administered_pfizer + new_vaccine_doses_administered_moderna + new_vaccine_doses_administered_janssen)) * 100 AS vaccination_rate,
+        (SUM(new_recovered_male + new_recovered_female) / SUM(new_vaccine_doses_administered_pfizer + new_vaccine_doses_administered_moderna + new_vaccine_doses_administered_janssen)) * 100 AS recovery_rate
+      FROM
+        `covid_dummy.covid19_open_data`
+      WHERE
+        locality_name IS NOT NULL
+      GROUP BY
+        locality_name
+      ORDER BY
+        vaccination_rate DESC;
+
+  wheeze-trends:
+    kind: bigquery-sql
+    source: my-bigquery-source
+    description: Search for the top 5 localities with the highest average wheeze trends.
+    statement: |
+      SELECT
+        locality_name,
+        AVG(search_trends_wheeze) AS avg_wheeze_trend
+      FROM
+        `covid_dummy.covid19_open_data`
+      GROUP BY
+        locality_name
+      HAVING
+        avg_wheeze_trend IS NOT NULL
+      ORDER BY
+        avg_wheeze_trend DESC
+      LIMIT 5;
+
 toolsets:
   dummy-toolset:
     - search-all-hotels-dummy
     - search-hotels-by-name
     - search-hotels-by-location
+    - search-30
+    - search-trends-with-recovered-population
+    - search-vaccination-and-recovery-rate
+    - wheeze-trends
