@@ -1,4 +1,3 @@
-import logging
 from google.adk.agents.llm_agent import LlmAgent
 from google.adk.models.lite_llm import LiteLlm
 from .utils import (
@@ -13,8 +12,6 @@ NESTED_FIELDS = get_nested_fields()
 
 class ParkingAgent(LlmAgent):
     def __init__(self, ctx, tools):
-        logging.info("[ParkingAgent] Initializing ParkingAgent")
-
         fields_str = ", ".join(DEFAULT_PARKING_FIELDS)
         nested_fields_str = ", ".join(NESTED_FIELDS)
 
@@ -56,12 +53,3 @@ Example nested query:
             tools=tools,
             # before_tool_callback=ensure_required_params_callback,
         )
-
-    async def run_async(self, ctx):
-        async for event in super().run_async(ctx):
-            if hasattr(event.actions, "tool_calls"):
-                logging.info(f"[ParkingAgent] Tool calls: {event.actions.tool_calls}")
-            logging.info(
-                f"[ParkingAgent] state_delta: {getattr(event.actions, 'state_delta', None)}"
-            )
-            yield event

@@ -1,5 +1,4 @@
 import os
-import logging
 from google.adk.agents.base_agent import BaseAgent
 from google.adk.events import Event, EventActions
 from google.genai.types import Part, Content
@@ -17,7 +16,7 @@ class AuthAgent(BaseAgent):
 
         # Check if user has entered a password
         user_password = ctx.session.state.get("user_auth_password")
-        logging.info(f"[AuthAgent] User input password: {user_password}")
+
         if user_password is None:
             # Request password input
             ctx.session.state["auth_in_progress"] = True
@@ -34,7 +33,6 @@ class AuthAgent(BaseAgent):
         if user_password == self._expected_key:
             ctx.session.state["api_auth_success"] = True
             ctx.session.state["auth_in_progress"] = False
-            logging.info("[AuthAgent] Authentication successful!")
             yield Event(
                 author=self.name,
                 content=Content(
@@ -51,7 +49,6 @@ class AuthAgent(BaseAgent):
         else:
             ctx.session.state["api_auth_success"] = False
             ctx.session.state["auth_in_progress"] = False
-            logging.info("[AuthAgent] Authentication failed!")
             yield Event(
                 author=self.name,
                 content=Content(parts=[Part(text="Authentication failed.")]),

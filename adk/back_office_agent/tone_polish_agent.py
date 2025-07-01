@@ -1,12 +1,9 @@
 from google.adk.agents.llm_agent import LlmAgent
 from google.adk.models.lite_llm import LiteLlm
-import logging
 
 
 class TonePolishAgent(LlmAgent):
     def __init__(self, ctx):
-        logging.info("[TonePolishAgent] Initializing TonePolishAgent")
-
         super().__init__(
             name="tone_polish_agent",
             model=LiteLlm(model="openai/gpt-4o-mini"),
