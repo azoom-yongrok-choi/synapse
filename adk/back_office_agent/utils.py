@@ -8,6 +8,7 @@ from enum import Enum
 class RequestType(str, Enum):
     PARKING = "parking"
     OTHER = "other"
+    PARSING = "parsing"
 
 
 CLASSIFIER_RESULT = "classifier_result"
