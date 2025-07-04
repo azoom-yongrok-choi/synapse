@@ -9,6 +9,7 @@ class RequestType(str, Enum):
     PARKING = "parking"
     OTHER = "other"
     PARSING = "parsing"
+    BOOK = "book"
 
 
 CLASSIFIER_RESULT = "classifier_result"
@@ -159,3 +160,8 @@ async def ensure_required_params_callback(tool, args, tool_context):
             "status": "error",
             "error_message": f"Exception occurred during parameter check: {e}",
         }
+
+
+async def get_filtered_tools(ctx, toolset, allowed_names):
+    all_tools = await toolset.get_tools(ctx)
+    return [tool for tool in all_tools if tool.name in allowed_names]

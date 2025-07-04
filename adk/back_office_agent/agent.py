@@ -12,7 +12,7 @@ from .parking_agent import ParkingAgent
 from .common_agent import CommonAgent
 from .tone_polish_agent import TonePolishAgent
 from .parsing_agent import ParsingAgent
-from .utils import RequestType
+from .utils import RequestType, get_filtered_tools
 from .auth_agent import AuthAgent
 from .custom_adk_patches import CustomMCPToolset
 
@@ -24,6 +24,7 @@ class BackOfficeRootAgent(BaseAgent):
     _tone_polish_agent: TonePolishAgent = PrivateAttr()
     _auth_agent: AuthAgent = PrivateAttr()
     _parsing_agent: ParsingAgent = PrivateAttr()
+    _dummy_tools: CustomMCPToolset = PrivateAttr()
 
     def __init__(self, ctx):
         logging.info("[ROOT AGENT] Initializing")
@@ -54,9 +55,15 @@ class BackOfficeRootAgent(BaseAgent):
             connection_params=StreamableHTTPServerParams(
                 url="http://localhost:8080/mcp"
             ),
-            tool_filter=["get-covid-json-keys"],
         )
-        logging.info(f"[Dummy Tools] {[dummy_tools]}")
+
+        self._dummy_tools = CustomMCPToolset(
+            connection_params=StreamableHTTPServerParams(
+                url="http://localhost:8080/mcp"
+            ),
+            # tool_filter=["get-covid-json-keys"],
+        )
+
         # sub-agents
         self._classifier_agent = ClassifierAgent(ctx)
         self._parking_agent = ParkingAgent(ctx, tools=[parking_tool])
@@ -64,6 +71,14 @@ class BackOfficeRootAgent(BaseAgent):
         self._tone_polish_agent = TonePolishAgent(ctx)
         self._auth_agent = AuthAgent(ctx)
         self._parsing_agent = ParsingAgent(ctx, tools=[dummy_tools])
+        # self._parsing_agent = None
+
+    async def setup_parsing_agent(self, ctx):
+        filtered_tools = await get_filtered_tools(
+            ctx, self._dummy_tools, ["get-covid-json-keys", "get-book-json-keys"]
+        )
+        self._parsing_agent = ParsingAgent(ctx, tools=filtered_tools)
+        logging.info(f"[ParsingAgent] tools: {[tool.name for tool in filtered_tools]}")
 
     async def _run_async_impl(self, ctx):
         logging.info("[ROOT AGENT] Start workflow")
@@ -113,6 +128,8 @@ class BackOfficeRootAgent(BaseAgent):
                 yield event
             response_text = ctx.session.state.get("response_text")
         elif classifier_result == RequestType.PARSING:
+            if self._parsing_agent is None:
+                await self.setup_parsing_agent(ctx)
             async for event in self._parsing_agent.run_async(ctx):
                 yield event
             response_text = ctx.session.state.get("response_text")
