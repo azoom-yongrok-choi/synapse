@@ -17,11 +17,10 @@ from typing import Any, Dict, List, Optional, TextIO, Union
 from google.adk.tools.mcp_tool.mcp_session_manager import (
     MCPSessionManager,
     StdioServerParameters,
+    StreamableHTTPServerParams,
 )
 from google.adk.tools.mcp_tool.mcp_toolset import (
     MCPToolset,
-    SseServerParams,
-    StreamableHTTPServerParams,
     ToolPredicate,
 )
 from mcp.client.session import ClientSession
@@ -44,9 +43,7 @@ class CustomMcpSessionManager(MCPSessionManager):
 
     def __init__(
         self,
-        connection_params: Union[
-            StdioServerParameters, SseServerParams, StreamableHTTPServerParams
-        ],
+        connection_params: Union[StdioServerParameters, StreamableHTTPServerParams],
         errlog: TextIO = sys.stderr,
     ):
         """Initialize the custom session manager with all required attributes."""
@@ -56,12 +53,17 @@ class CustomMcpSessionManager(MCPSessionManager):
         self._exit_stack: Optional[AsyncExitStack] = None
         self._session: Optional[ClientSession] = None
 
-    async def create_session(self) -> ClientSession:
+    async def create_session(
+        self,
+        headers=None,
+        timeout=None,
+        sse_read_timeout=None,
+        terminate_on_close=None,
+        **kwargs,
+    ) -> ClientSession:
         """
         Creates and initializes an MCP client session with custom timeout for StdioServerParameters.
-
-        This is a complete copy of the original ADK create_session logic from
-        google-adk version 1.2.0, with only the timeout modification for StdioServerParameters.
+        ADK 1.6.x 호환: headers, timeout 등 다양한 인자를 받을 수 있도록 확장.
         """
         if self._session is not None:
             return self._session
@@ -74,27 +76,22 @@ class CustomMcpSessionManager(MCPSessionManager):
                 client = stdio_client(
                     server=self._connection_params, errlog=self._errlog
                 )
-            elif isinstance(self._connection_params, SseServerParams):
-                client = sse_client(
-                    url=self._connection_params.url,
-                    headers=self._connection_params.headers,
-                    timeout=self._connection_params.timeout,
-                    sse_read_timeout=self._connection_params.sse_read_timeout,
-                )
             elif isinstance(self._connection_params, StreamableHTTPServerParams):
                 client = streamablehttp_client(
                     url=self._connection_params.url,
-                    headers=self._connection_params.headers,
-                    timeout=timedelta(seconds=self._connection_params.timeout),
-                    sse_read_timeout=timedelta(
-                        seconds=self._connection_params.sse_read_timeout
-                    ),
-                    terminate_on_close=self._connection_params.terminate_on_close,
+                    headers=headers or self._connection_params.headers,
+                    timeout=timeout
+                    or timedelta(seconds=self._connection_params.timeout),
+                    sse_read_timeout=sse_read_timeout
+                    or timedelta(seconds=self._connection_params.sse_read_timeout),
+                    terminate_on_close=terminate_on_close
+                    if terminate_on_close is not None
+                    else self._connection_params.terminate_on_close,
                 )
             else:
                 raise ValueError(
                     "Unable to initialize connection. Connection should be"
-                    " StdioServerParameters or SseServerParams, but got"
+                    " StdioServerParameters, but got"
                     f" {self._connection_params}"
                 )
 
@@ -155,44 +152,17 @@ class CustomMCPToolset(MCPToolset):
 
     def __init__(
         self,
-        connection_params: Union[
-            StdioServerParameters, SseServerParams, StreamableHTTPServerParams
-        ],
+        connection_params: Union[StdioServerParameters, StreamableHTTPServerParams],
         tool_filter: Union[ToolPredicate, List[str], None] = None,
         errlog: TextIO = sys.stderr,
     ):
-        """
-        Initialize Custom MCPToolset with CustomMcpSessionManager.
-
-        Args:
-            connection_params: Parameters for the MCP connection
-            tool_filter: Optional filter to select specific tools
-            errlog: TextIO stream for error logging
-        """
-        # Call BaseToolset's __init__ directly, bypassing MCPToolset's __init__
-        # This prevents the original MCPToolset from creating the default MCPSessionManager
-        super(MCPToolset, self).__init__(tool_filter=tool_filter)
-
-        # Use our custom session manager instead of the default one
-        # Note: ADK expects this to be named '_mcp_session_manager', not '_session_manager'
+        # MCPToolset의 __init__을 반드시 호출
+        super().__init__(
+            connection_params=connection_params,
+            tool_filter=tool_filter,
+            errlog=errlog,
+        )
+        # 커스텀 세션 매니저로 교체
         self._mcp_session_manager = CustomMcpSessionManager(
             connection_params, errlog=errlog
         )
-
-        # Initialize ALL instance variables as in the original MCPToolset
-        self._tool_configs_by_name: Dict[str, Any] = {}
-        self._loaded_tools = False
-        self._closed = False
-        self._session: Optional[ClientSession] = None  # Normal attribute, not property
-
-    @property
-    def _session(self):
-        """Getter for _session - returns the session from the session manager."""
-        return getattr(self._mcp_session_manager, "_session", None)
-
-    @_session.setter
-    def _session(self, value):
-        """Setter for _session - this is needed for ADK compatibility but we ignore it since the session manager handles this."""
-        # The ADK tries to set this, but we let the session manager handle it
-        # We don't actually need to store it here since we get it from the session manager
-        pass
